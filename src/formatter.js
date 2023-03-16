@@ -1,5 +1,7 @@
 function ohlcv_chart(krakenCandles, pair) {
-    var candles = krakenCandles.result[pair];   // BTC -> XXBT ETH -> XETH USD -> ZUSD
+    pair = pair.replace("XBT", "XXBTZ");
+    pair = pair.replace("ETH", "XETHZ");
+    var candles = krakenCandles.result[pair];   // XBT -> XXBT ETH -> XETH USD -> ZUSD
     for (var i = 0; i < candles.length; i++) {
       candles[i].splice(7, 1); //remove  string <vwap> and int <count>
       candles[i].splice(5, 1);
@@ -17,10 +19,12 @@ function ohlcv_chart(krakenCandles, pair) {
 
 
 function ticker_form(krakenTicks, pair) {
+  pair = pair.replace("XBT", "XXBTZ");
+  pair = pair.replace("ETH", "XETHZ");
   var ticks =  krakenTicks.result[pair]
   for (var i = 0; i < ticks.length; i++) {
     ticks[i].splice(5,1);           // remove misc value
-    var id = ticks[i][5]  // move tradeID to first position of array
+    var id = ticks[i][5]  // move tradeID to zero position of array
     ticks[i].splice(5,1);
     ticks[i].splice(0,0,id);
   };
