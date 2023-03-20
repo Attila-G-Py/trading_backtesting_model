@@ -31,22 +31,26 @@ function ticker_form(krakenTicks, pair) { //expect raw data from api
   return ticks;
 };
 
-function ticks_to_candle(data){  // expect a nested list of two elements: list of tickdata and list of starting timestamps
-  let ticks = data[0];
-  let times = data[1];
-  let candle = [];
-  for (let i = 0; i < ticks.length; i++){
-    const time = times[i];
-    const prices = ticks[i].map(x => x[1]);
-    const volumes = ticks[i].map(x => parseFloat(x[2]));
-    const open = ticks[i][0][1];
-    const close = ticks[i][ticks[i].length-1][1];5
-    const high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
-    const low = prices.reduce((a, b) => Math.min(a, b), Infinity);
-    const candle_vol = volumes.reduce((a, b) => a + b, 0);
-    candle.push([time, open, high, low, close, candle_vol]);
+function ticks_to_candle(data){  // data; for each interval expect a nested list of two elements: list of tickdata and list of starting timestamps
+  all_candleset = [];
+  for (let j = 0; j < data.length; j++){ //iterate on intervals
+    let candle = data[j][0];
+    let times = data[j][1];
+    let candleset = [];
+    for (let i = 0; i < candle.length; i++){ //iterate on candles
+      const time = times[i];
+      const prices = candle[i].map(x => x[1]);
+      const volumes = candle[i].map(x => parseFloat(x[2]));
+      const open = candle[i][0][1];
+      const close = candle[i][candle[i].length-1][1];5
+      const high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
+      const low = prices.reduce((a, b) => Math.min(a, b), Infinity);
+      const candle_vol = volumes.reduce((a, b) => a + b, 0);
+      candleset.push([time, open, high, low, close, candle_vol]);
+    };
+    all_candleset.push(candleset);
   };
-  return candle
+  return all_candleset;
 };
 
   module.exports = {
