@@ -1,7 +1,7 @@
-var mysql = require("mysql");
-var fs = require('fs');
+const mysql = require("mysql");
+const fs = require('fs');
 
-var pool = mysql.createPool({
+const pool = mysql.createPool({
     host: "localhost",
     user: "jackunreal",
     password: "password",
@@ -31,14 +31,14 @@ function add_pair(pair,ohlc_periods) {
     });
   });
 };
-// add_pair("ADAUSD",["1","5","15","60"])
+// add_pair("ADAUSD",["3"])
 
                       // Connect to kraken api
 
 const getApiData  = require("./getApiData.js");
 const {public_connect_ticker, public_connect_ohlc} = getApiData;
 const formatter = require("./formatter.js");
-const {ohlcv_chart, ticker_form} = formatter
+const {ohlcv_chart, ticker_form,ticks_to_candle} = formatter
 
 async function get_ohlcv(pair, interval,since){
   var rawData = await public_connect_ohlc(pair, interval, since)
@@ -49,46 +49,38 @@ async function get_ohlcv(pair, interval,since){
 // get_ohlcv("ADAUSD",60,1608111600)
 
 async function get_ticker(pair,since){
-  var rawData = await public_connect_ticker(pair, since)
-  var ticks = ticker_form(rawData, pair)
+  let rawData = await public_connect_ticker(pair, since)
+  let ticks = ticker_form(rawData, pair)
   return ticks
 };
 
 // get_ticker("ADAUSD", 1678181112)
                       //Transform ticker data to ohlc values
-async function select_ticks(){
-
+async function select_ticks_sql(pair,interval,start){
 };
-async function select_ticks(pair,interval,start,end){
-  var chunk = await get_ticker(pair, start); //get max 1000 trades
-  var time_price_vol = chunk.flat(0).map(arr => [arr[3],arr[1],arr[2]]);
-  const close_time = start + interval*60;
-  while (time_price_vol[time_price_vol.length-1][0] < close_time){
-    chunk = await get_ticker(pair, time_price_vol[time_price_vol.length-1][0]);
-    time_price_vol = time_price_vol.concat(chunk.flat(0).map(arr => [arr[3],arr[1],arr[2]]));
+
+async function download_ticks(pair,interval,start,num_of_candles){          
+  let all_candles = [];
+  let times = [];
+  let candle_data = await get_ticker(pair, start);
+  for (let i = 0; i < num_of_candles; i++) {
+    let current_start = start + i * interval * 60;
+    times.push(current_start);
+    let current_close = start + (i+1) * interval * 60;
+    while (candle_data[candle_data.length-1][3] < current_close){ //get max 1000 trades
+      chunk = await get_ticker(pair, candle_data[candle_data.length-1][3]);
+      candle_data = candle_data.concat(chunk);
+    };
+    all_candles.push(candle_data.filter(row => row[3] < current_close));
+    candle_data = candle_data.filter(row => row[3] > current_close);
   };
-  const candle_data = time_price_vol.filter(row => row[0] < close_time);
-  return ticks_to_candle(candle_data);
+  return [all_candles,times];
 };
 
-function ticks_to_candle(ticks){
-  const prices = ticks.map(x => x[1]);
-  const volumes = ticks.map(x => parseFloat(x[2]));
-  const open = ticks[0][1];
-  const close = ticks[ticks.length-1][1];
-  const high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
-  const low = prices.reduce((a, b) => Math.min(a, b), Infinity);
-  let candle_vol = volumes.reduce((a, b) => a + b, 0);
-  const candle = [open, high, low, close, candle_vol];
-  console.log(candle)
-  return candle
-};
-
-select_ticks("XBTUSD",60,1678960800,4)
 
                       // Fill the database             
-async function fill_sql_ticks(pair,since) {
-  var data = await get_ticker(pair, since);
+async function fill_sql_ticks(pair,since) {     // directly from api
+  let data = await get_ticker(pair, since);
   let rawTickerQuery = 'INSERT INTO ' + pair + '(TradeID, Price, Volume, Time, Buy_Sell, Market_Limit) VALUES ?';
   let ticker_query = mysql.format(rawTickerQuery,[data]);
   pool.query(ticker_query,(err, response) => {
@@ -99,8 +91,7 @@ async function fill_sql_ticks(pair,since) {
   });
 };
 
-async function fill_sql_ohlc(pair,interval,since) {      
-  var data = await get_ohlcv(pair, interval,since);
+async function fill_sql_ohlc(pair,interval,data) {      //data parameter; source can be sql or api
   let rawOhlcrQuery = 'INSERT INTO ' + pair + interval + '(Time, Open, High, Low, Close, Volume) VALUES ?';
   let ohlc_query = mysql.format(rawOhlcrQuery,[data]);
   pool.query(ohlc_query,(err, response) => {
@@ -110,4 +101,11 @@ async function fill_sql_ohlc(pair,interval,since) {
     };
   });
 };
+
+let raw_candle = download_ticks("ADAUSD",15,1678966200,6)
+raw_candle.then(function(candle) {
+  let data = ticks_to_candle(candle);
+  fill_sql_ohlc("ADAUSD",15,data);
+});
+
 // fill_sql_ticks("ADAUSD",1609462800)     

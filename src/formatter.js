@@ -1,4 +1,4 @@
-function ohlcv_chart(krakenCandles, pair) {
+function ohlcv_chart(krakenCandles, pair) { //expect raw data from api, api supports only the last 720 datpoint so this function has a limited usecase :/
     pair = pair.replace("XBT", "XXBTZ");
     pair = pair.replace("ETH", "XETHZ");
     var candles = krakenCandles.result[pair];   // XBT -> XXBT ETH -> XETH USD -> ZUSD
@@ -18,7 +18,7 @@ function ohlcv_chart(krakenCandles, pair) {
   };
 
 
-function ticker_form(krakenTicks, pair) {
+function ticker_form(krakenTicks, pair) { //expect raw data from api
   pair = pair.replace("XBT", "XXBTZ");
   pair = pair.replace("ETH", "XETHZ");
   var ticks =  krakenTicks.result[pair]
@@ -31,8 +31,27 @@ function ticker_form(krakenTicks, pair) {
   return ticks;
 };
 
+function ticks_to_candle(data){  // expect a nested list of two elements: list of tickdata and list of starting timestamps
+  let ticks = data[0];
+  let times = data[1];
+  let candle = [];
+  for (let i = 0; i < ticks.length; i++){
+    const time = times[i];
+    const prices = ticks[i].map(x => x[1]);
+    const volumes = ticks[i].map(x => parseFloat(x[2]));
+    const open = ticks[i][0][1];
+    const close = ticks[i][ticks[i].length-1][1];5
+    const high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
+    const low = prices.reduce((a, b) => Math.min(a, b), Infinity);
+    const candle_vol = volumes.reduce((a, b) => a + b, 0);
+    candle.push([time, open, high, low, close, candle_vol]);
+  };
+  return candle
+};
+
   module.exports = {
     ohlcv_chart,
-    ticker_form
+    ticker_form,
+    ticks_to_candle
   };
   
