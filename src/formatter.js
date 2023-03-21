@@ -20,6 +20,7 @@ function ohlcv_chart(krakenCandles, pair) { //expect raw data from api, api supp
 
 function ticker_form(krakenTicks, pair) { //expect raw data from api
   pair = pair.replace("XBT", "XXBTZ");
+  pair = pair.replace("BTC", "XXBTZ");
   pair = pair.replace("ETH", "XETHZ");
   var ticks =  krakenTicks.result[pair]
   for (var i = 0; i < ticks.length; i++) {
@@ -42,7 +43,7 @@ function ticks_to_candle(data){  // data; for each interval expect a nested list
       const prices = candle[i].map(x => x[1]);
       const volumes = candle[i].map(x => parseFloat(x[2]));
       const open = candle[i][0][1];
-      const close = candle[i][candle[i].length-1][1];5
+      const close = candle[i][candle[i].length-1][1];
       const high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
       const low = prices.reduce((a, b) => Math.min(a, b), Infinity);
       const candle_vol = volumes.reduce((a, b) => a + b, 0);

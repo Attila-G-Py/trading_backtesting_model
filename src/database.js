@@ -31,7 +31,7 @@ function add_pair(pair,ohlc_periods) {
     });
   });
 };
-// add_pair("ADAUSD",["3"])
+// add_pair("ADAUSD",["60","15","5"])
 
                       // Connect to kraken api
 
@@ -60,7 +60,7 @@ async function select_ticks_sql(pair,interval,start){
 };
 
 async function download_ticks(pair,intervals,start,largest_timeframe_candles){          
-  let all_candleset = [];
+  let result = [];
   let candle_data = await get_ticker(pair, start);
   for (let i=0; i<largest_timeframe_candles; i++) {   //iterates on datasets
     let current_close;
@@ -68,36 +68,38 @@ async function download_ticks(pair,intervals,start,largest_timeframe_candles){
     for (let j=0, iter_count=0; ((iter_count<max_iter)&&(j<intervals.length)); iter_count++){   //iterates on intervals
       let interval = intervals[j];
       max_iter = intervals[0] / interval;
-      let current_start = start + i * interval * 60;
-      current_close = start + (i+1) * interval * 60;
+      let dataset_start = start + (i * intervals[0]*60)
+      let current_start = dataset_start + (iter_count * interval * 60);
+      current_close = current_start + (interval * 60);
       while (candle_data[candle_data.length-1][3] < current_close){ //get max 1000 trades
         chunk = await get_ticker(pair, candle_data[candle_data.length-1][3]);
         candle_data = candle_data.concat(chunk);
       };
-      current_timeframe_alldata = [[candle_data.filter(row => row[3] < current_close)],[current_start]]
-      if (all_candleset.length <= j){
-        all_candleset.push(current_timeframe_alldata);
+      let cropped_start = candle_data.filter(row => row[3] > current_start)
+      let cropped = cropped_start.filter(row => row[3] < current_close)
+      current_timeframe_alldata = [[cropped],[current_start]]
+      if (result.length <= j){
+        result.push([[cropped],[current_start]]);
       }else{
-        all_candleset[j][0].push(current_timeframe_alldata[0][0]);
-        all_candleset[j][1].push(current_timeframe_alldata[1][0]);
-      };
-      if ((j===0) && (i===largest_timeframe_candles-1)){
-        fill_sql_ticks(pair,candle_data.filter(row => row[3] < current_close));
-        candle_data = candle_data.filter(row => row[3] > current_close);
+        result[j][0].push(cropped);
+        result[j][1].push(current_start);
       };
       if (iter_count+1 == max_iter){
         j++;
         iter_count = -1;
       };
     };
+    fill_sql_ticks(pair,candle_data.filter(row => row[3] < current_close));
+    candle_data = candle_data.filter(row => row[3] > current_close);
+    
   };
-  return all_candleset;
+  return result;
 };
 
 
                       // Fill the database             
 async function fill_sql_ticks(pair,data) {     //data parameter; with get_ticker 
-  let rawTickerQuery = 'INSERT INTO ' + pair + '(TradeID, Price, Volume, Time, Buy_Sell, Market_Limit) VALUES ?';
+  let rawTickerQuery = 'INSERT IGNORE INTO ' + pair + '(TradeID, Price, Volume, Time, Buy_Sell, Market_Limit) VALUES ?';
   let ticker_query = mysql.format(rawTickerQuery,[data]);
   pool.query(ticker_query,(err, response) => {
     if(err) {
@@ -108,7 +110,7 @@ async function fill_sql_ticks(pair,data) {     //data parameter; with get_ticker
 };
 
 async function fill_sql_ohlc(pair,interval,data) {      //data parameter; source can be sql or api
-  let rawOhlcrQuery = 'INSERT INTO ' + pair + interval + '(Time, Open, High, Low, Close, Volume) VALUES ?';
+  let rawOhlcrQuery = 'INSERT IGNORE INTO ' + pair + interval + '(Time, Open, High, Low, Close, Volume) VALUES ?';
   let ohlc_query = mysql.format(rawOhlcrQuery,[data]);
   pool.query(ohlc_query,(err, response) => {
     if(err) {
@@ -118,12 +120,15 @@ async function fill_sql_ohlc(pair,interval,data) {      //data parameter; source
   });
 };
 
-// let raw_candle = download_ticks("ADAUSD",[60,15,5],1678966200,6)  //generates ohlc values from ticker data on given intervals, and fills the database 
-// raw_candle.then(function(candle) {
-//   let data = ticks_to_candle(candle);
-//   fill_sql_ohlc("ADAUSD",60,data[0]);
-//   fill_sql_ohlc("ADAUSD",15,data[1]);
-//   fill_sql_ohlc("ADAUSD",5,data[2]);
-// });
+let raw_candle = download_ticks("ADAUSD",[60,15],1679349600,3)  //generates ohlc values from ticker data on given intervals, and fills the database 
+raw_candle.then(function(candle) {
+  let data = ticks_to_candle(candle);
+  fill_sql_ohlc("ADAUSD",60,data[0]);
+  fill_sql_ohlc("ADAUSD",15,data[1]);
+  fill_sql_ohlc("ADAUSD",5,data[2]);
+  pool.end();
+});
 
 // fill_sql_ticks("ADAUSD",1609462800)     
+
+
