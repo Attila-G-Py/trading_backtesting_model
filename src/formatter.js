@@ -42,10 +42,23 @@ function ticks_to_candle(data){  // data; for each interval expect a nested list
       const time = times[i];
       const prices = candle[i].map(x => x[1]);
       const volumes = candle[i].map(x => parseFloat(x[2]));
-      const open = candle[i][0][1];
-      const close = candle[i][candle[i].length-1][1];
-      const high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
-      const low = prices.reduce((a, b) => Math.min(a, b), Infinity);
+      let open = 0;
+      let close = 0;
+      let high = 0;
+      let low = 0;
+      try{
+        open = candle[i][0][1];
+        close = candle[i][candle[i].length-1][1];
+        high = prices.reduce((a, b) => Math.max(a, b), -Infinity);
+        low = prices.reduce((a, b) => Math.min(a, b), Infinity);
+      }catch(err){
+        open = candleset[candleset.length-1][4];
+        close = open;
+        high = open;
+        low = open;
+        console.log(j,i);
+        console.log(err);
+      };
       const candle_vol = volumes.reduce((a, b) => a + b, 0);
       candleset.push([time, open, high, low, close, candle_vol]);
     };
