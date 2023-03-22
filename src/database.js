@@ -31,7 +31,7 @@ function add_pair(pair,ohlc_periods) {
     });
   });
 };
-//  add_pair("ADAUSD",["1"])
+// add_pair("BTCUSD",["1"])
 
                       // Connect to kraken api
 
@@ -45,15 +45,12 @@ async function get_ohlcv(pair, interval,since){
   var chart =  ohlcv_chart(rawData,pair);
   return chart;
 };
-
 // get_ohlcv("ADAUSD",60,1608111600)
-
 async function get_ticker(pair,since){
   let rawData = await public_connect_ticker(pair, since);
   let ticks = ticker_form(rawData, pair);
   return ticks;
 };
-
 // get_ticker("ADAUSD", 1678181112)
                       //Transform ticker data to ohlc values
 async function select_ticks_sql(pair,interval,start){
@@ -95,8 +92,6 @@ async function download_ticks(pair,intervals,start,largest_timeframe_candles){
   };
   return result;
 };
-
-
                       // Fill the database             
 async function fill_sql_ticks(pair,data) {     //data parameter; with get_ticker 
   let rawTickerQuery = 'INSERT IGNORE INTO ' + pair + '(TradeID, Price, Volume, Time, Buy_Sell, Market_Limit) VALUES ?';
@@ -120,14 +115,14 @@ async function fill_sql_ohlc(pair,interval,data) {      //data parameter; source
   });
 };
 
-// let raw_candle = download_ticks("ADAUSD",[60,15,5,1],1679349600,5)  //generates ohlc values from ticker data on given intervals, and fills the database 
-// raw_candle.then(function(candle) {                              //intervals in descending order
-//   let data = ticks_to_candle(candle);
-//   fill_sql_ohlc("ADAUSD",60,data[0]);
-//   fill_sql_ohlc("ADAUSD",15,data[1]);
-//   fill_sql_ohlc("ADAUSD",5,data[2]);
-//   fill_sql_ohlc("ADAUSD",1,data[3]);
-// });
+let raw_candle = download_ticks("BTCUSD",[60,15,5,1],1678410000,10)  //generates ohlc values from ticker data on given intervals, and fills the database 
+raw_candle.then(function(candle) {                              //intervals in descending order
+  let data = ticks_to_candle(candle);
+  fill_sql_ohlc("BTCUSD",60,data[0]);
+  fill_sql_ohlc("BTCUSD",15,data[1]);
+  fill_sql_ohlc("BTCUSD",5,data[2]);
+  fill_sql_ohlc("BTCUSD",1,data[3]);
+});
 
 // fill_sql_ticks("ADAUSD",1609462800)     
 
