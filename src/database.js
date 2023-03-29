@@ -115,7 +115,7 @@ async function fill_sql_ohlc(pair,interval,data) {      //data parameter; source
   });
 };
 
-let raw_candle = download_ticks("BTCUSD",[60,15,5,1],1678410000,10)  //generates ohlc values from ticker data on given intervals, and fills the database 
+let raw_candle = download_ticks("BTCUSD",[60,15,5,1],1678482000	,4)  //generates ohlc values from ticker data on given intervals, and fills the database 
 raw_candle.then(function(candle) {                              //intervals in descending order
   let data = ticks_to_candle(candle);
   fill_sql_ohlc("BTCUSD",60,data[0]);
